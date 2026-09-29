@@ -1,0 +1,17 @@
+$ cat pii-a.json   # input chứa PII GIẢ
+{"user_id":"u-pii-demo","session_id":"s-pii-demo","feature":"qa","message":"Mail test.student@example.com, phone 0912 345 678, CCCD 079203001234"}
+$ curl -s -X POST localhost:8013/chat -H 'x-request-id: req-b1d05ec1' -d @pii-a.json >/dev/null
+$ grep 'req-b1d05ec1' data/logs.jsonl | grep request_received   # log đã ghi xuống file
+{"service": "api", "payload": {"message_preview": "Mail [REDACTED_EMAIL], phone [REDACTED_PHONE_VN], CCCD [REDACTED_CCCD]"}, "event": "request_received", "user_id_hash": "b464b576d729", "correlation_id": "req-b1d05ec1", "env": "dev", "session_id": "s-pii-demo", "feature": "qa", "model": "claude-sonnet-4-5", "level": "info", "ts": "2026-09-29T17:34:55.465249Z"}
+
+$ cat pii-b.json   # input chứa PII GIẢ
+{"user_id":"u-pii-demo","session_id":"s-pii-demo","feature":"qa","message":"Card 4111 1111 1111 1111, passport B1234567 - what is the policy?"}
+$ curl -s -X POST localhost:8013/chat -H 'x-request-id: req-b1d05ec2' -d @pii-b.json >/dev/null
+$ grep 'req-b1d05ec2' data/logs.jsonl | grep request_received   # log đã ghi xuống file
+{"service": "api", "payload": {"message_preview": "Card [REDACTED_CREDIT_CARD], passport [REDACTED_PASSPORT_VN] - what is the polic..."}, "event": "request_received", "user_id_hash": "b464b576d729", "correlation_id": "req-b1d05ec2", "env": "dev", "session_id": "s-pii-demo", "feature": "qa", "model": "claude-sonnet-4-5", "level": "info", "ts": "2026-09-29T17:34:55.651005Z"}
+
+$ grep -cE 'test.student@example.com|0912 345 678|079203001234|4111 1111 1111 1111|B1234567' data/logs.jsonl   # số dòng còn PII thô
+0
+$ python scripts/scan_secrets_pii.py --logs data/logs.jsonl
+Đã quét 77 file trong repo và 1 log runtime
+SẠCH: không có secret, PII thô hoặc file cấm.

@@ -177,3 +177,23 @@ Không push bài làm trực tiếp lên repo đề bài và không dùng chung 
 - [RUBRIC.md](docs/RUBRIC.md), [RULES.md](docs/RULES.md), [SUBMISSION.md](docs/SUBMISSION.md): cách chấm, quy định và cách nộp.
 - [grading-evidence.md](docs/grading-evidence.md): checklist nhanh các ảnh/output cần thu thập.
 - [REPORT.md](submission/REPORT.md): báo cáo cá nhân duy nhất cần hoàn thiện.
+
+## Ghi chú triển khai của học viên (2A202602532)
+
+Các lệnh bổ sung ngoài starter:
+
+```bash
+python scripts/build_dashboard.py --watch            # dashboard 6 panel: data/dashboard.html, refresh 30s
+python scripts/find_slow_requests.py --threshold-ms 2000   # bước Logs: request chậm/lỗi + correlation_id
+python scripts/scan_secrets_pii.py --logs data/logs.jsonl  # chặn secret/PII thô trước khi commit
+python scripts/query_audit.py --since-minutes 60     # audit log bật/tắt incident
+```
+
+Nếu port 8000 đã bị ứng dụng khác dùng, chạy API ở port khác và đặt `LAB_BASE_URL`:
+
+```bash
+uvicorn app.main:app --env-file .env --port 8013
+LAB_BASE_URL=http://127.0.0.1:8013 python scripts/load_test.py
+```
+
+Không `export` biến từ `.env` vào shell trước khi chạy uvicorn: `--env-file` không ghi đè biến đã có, nên label prompt cũ sẽ được dùng. Báo cáo: [submission/REPORT.md](submission/REPORT.md).

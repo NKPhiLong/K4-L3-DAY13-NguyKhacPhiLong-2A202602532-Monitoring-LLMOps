@@ -1,0 +1,39 @@
+$ grep req-067702c0 data/logs.jsonl | python -m json.tool --json-lines
+{
+    "service": "api",
+    "payload": {
+        "message_preview": "Explain why metrics traces and logs work together"
+    },
+    "event": "request_received",
+    "env": "dev",
+    "user_id_hash": "95b6504a8bd6",
+    "correlation_id": "req-067702c0",
+    "session_id": "s02",
+    "feature": "qa",
+    "model": "claude-sonnet-4-5",
+    "level": "info",
+    "ts": "2026-09-29T17:26:49.946790Z"
+}
+{
+    "service": "api",
+    "latency_ms": 162,
+    "ttft_ms": 55,
+    "tokens_in": 32,
+    "tokens_out": 124,
+    "cost_usd": 0.001956,
+    "quality_score": 0.8,
+    "tool_name": "retrieval",
+    "tool_success": true,
+    "payload": {
+        "answer_preview": "Starter answer. You should improve this output logic and add better quality chec..."
+    },
+    "event": "response_sent",
+    "env": "dev",
+    "user_id_hash": "95b6504a8bd6",
+    "correlation_id": "req-067702c0",
+    "session_id": "s02",
+    "feature": "qa",
+    "model": "claude-sonnet-4-5",
+    "level": "info",
+    "ts": "2026-09-29T17:26:50.109906Z"
+}

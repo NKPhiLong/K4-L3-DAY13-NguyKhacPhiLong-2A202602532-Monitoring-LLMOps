@@ -1,0 +1,5 @@
+Trace b0e8dc5ad688abe6cf6af064ecb244ab · correlation_id req-62d50770 · challenge day13-k4-l3a-monitoring-llmops-v1
+type        name            id                parent            start (UTC)   duration_ms  details
+RETRIEVER   retrieval       e4765460b8cbbd48  557e53770d7c1d22  17:28:42.208         2507  doc_count=1 retrieval_ms=2505 share=94% of trace
+AGENT       lab-agent-run   557e53770d7c1d22  None              17:28:42.208         2666  correlation_id=req-62d50770 prompt=day13-chat/production/v1 feature=monitoring
+GENERATION  llm-generation  07ec014df1401f43  557e53770d7c1d22  17:28:44.716          158  model=claude-sonnet-4-5 prompt=day13-chat v1 usage={'input': 36, 'output': 131, 'total': 167} cost=0.002073 ttft_s=0.053

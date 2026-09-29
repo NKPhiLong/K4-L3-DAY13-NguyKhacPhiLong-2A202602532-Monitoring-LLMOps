@@ -1,0 +1,50 @@
+$ python scripts/find_slow_requests.py --threshold-ms 2000 --since 2026-09-29T17:28:00Z --until 2026-09-29T17:30:00Z
+ts (UTC)                     event              correlation_id feature     latency_ms ttft_ms  detail
+2026-09-29T17:28:42.128323Z  incident_enabled   -              -                    -       -  {'name': 'rag_slow'}
+2026-09-29T17:28:44.874501Z  response_sent      req-62d50770   monitoring        2665      53  tool_success=True
+2026-09-29T17:28:47.544197Z  response_sent      req-0ea20161   monitoring        2665      55  tool_success=True
+2026-09-29T17:28:50.215294Z  response_sent      req-ff35d969   monitoring        2665      51  tool_success=True
+2026-09-29T17:28:52.884271Z  response_sent      req-7c4ae407   monitoring        2665      53  tool_success=True
+2026-09-29T17:28:55.559081Z  response_sent      req-3a1f9c1c   monitoring        2668      55  tool_success=True
+2026-09-29T17:29:11.979366Z  incident_disabled  -              -                    -       -  {'name': 'rag_slow'}
+-- 5 request vượt 2000 ms hoặc lỗi
+
+$ grep req-62d50770 data/logs.jsonl | python -m json.tool --json-lines
+{
+    "service": "api",
+    "payload": {
+        "message_preview": "Which signal should be checked after latency increases?"
+    },
+    "event": "request_received",
+    "env": "dev",
+    "user_id_hash": "4570299f37e2",
+    "correlation_id": "req-62d50770",
+    "session_id": "k4-l3a-challenge-s04",
+    "feature": "monitoring",
+    "model": "claude-sonnet-4-5",
+    "level": "info",
+    "ts": "2026-09-29T17:28:42.207705Z"
+}
+{
+    "service": "api",
+    "latency_ms": 2665,
+    "ttft_ms": 53,
+    "tokens_in": 36,
+    "tokens_out": 131,
+    "cost_usd": 0.002073,
+    "quality_score": 0.9,
+    "tool_name": "retrieval",
+    "tool_success": true,
+    "payload": {
+        "answer_preview": "Starter answer. You should improve this output logic and add better quality chec..."
+    },
+    "event": "response_sent",
+    "env": "dev",
+    "user_id_hash": "4570299f37e2",
+    "correlation_id": "req-62d50770",
+    "session_id": "k4-l3a-challenge-s04",
+    "feature": "monitoring",
+    "model": "claude-sonnet-4-5",
+    "level": "info",
+    "ts": "2026-09-29T17:28:44.874501Z"
+}
