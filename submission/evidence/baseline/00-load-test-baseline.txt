@@ -1,0 +1,11 @@
+$ python scripts/load_test.py
+[200] MISSING | qa | 207.1ms
+[200] MISSING | qa | 162.9ms
+[200] MISSING | summary | 163.6ms
+[200] MISSING | qa | 160.2ms
+[200] MISSING | qa | 162.0ms
+[200] MISSING | summary | 160.7ms
+[200] MISSING | qa | 167.2ms
+[200] MISSING | qa | 164.4ms
+[200] MISSING | qa | 168.6ms
+[200] MISSING | qa | 162.1ms
