@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from structlog.contextvars import bind_contextvars
 
 from .agent import LabAgent
+from .audit import prune_audit, write_audit
 from .incidents import disable, enable, status
 from .logging_config import configure_logging, get_logger
 from .metrics import record_error, snapshot
@@ -23,11 +24,12 @@ agent = LabAgent()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    pruned = prune_audit()
     log.info(
         "app_started",
         service=os.getenv("APP_NAME", "day13-monitoring-llmops-lab"),
         env=os.getenv("APP_ENV", "dev"),
-        payload={"tracing_enabled": tracing_enabled()},
+        payload={"tracing_enabled": tracing_enabled(), "audit_records_pruned": pruned},
     )
     yield
 
@@ -107,21 +109,36 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=500, detail=error_type) from exc
 
 
-@app.post("/incidents/{name}/enable")
-async def enable_incident(name: str) -> JSONResponse:
+def _toggle_incident(request: Request, name: str, turn_on: bool) -> JSONResponse:
+    action = "incident.enable" if turn_on else "incident.disable"
+    previous = status().get(name)
+    audit_fields = dict(
+        action=action,
+        target=name,
+        correlation_id=request.state.correlation_id,
+        actor=request.headers.get("x-actor"),
+        client_ip=request.client.host if request.client else None,
+        previous_state=previous,
+    )
     try:
-        enable(name)
-        log.warning("incident_enabled", service="control", payload={"name": name})
-        return JSONResponse({"ok": True, "incidents": status()})
+        (enable if turn_on else disable)(name)
     except KeyError as exc:
+        write_audit(result="rejected", new_state=None, **audit_fields)
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    write_audit(result="success", new_state=status()[name], **audit_fields)
+    log.warning(
+        "incident_enabled" if turn_on else "incident_disabled",
+        service="control",
+        payload={"name": name},
+    )
+    return JSONResponse({"ok": True, "incidents": status()})
+
+
+@app.post("/incidents/{name}/enable")
+async def enable_incident(request: Request, name: str) -> JSONResponse:
+    return _toggle_incident(request, name, turn_on=True)
 
 
 @app.post("/incidents/{name}/disable")
-async def disable_incident(name: str) -> JSONResponse:
-    try:
-        disable(name)
-        log.warning("incident_disabled", service="control", payload={"name": name})
-        return JSONResponse({"ok": True, "incidents": status()})
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+async def disable_incident(request: Request, name: str) -> JSONResponse:
+    return _toggle_incident(request, name, turn_on=False)

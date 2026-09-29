@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Day 13 control-plane audit record",
+  "description": "Một dòng JSON trong data/audit.jsonl. Retention mặc định 90 ngày (AUDIT_RETENTION_DAYS), prune khi app khởi động hoặc qua scripts/query_audit.py --prune.",
+  "type": "object",
+  "required": ["schema_version", "audit_id", "ts", "service", "env", "actor", "action", "target", "result", "correlation_id"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "audit_id": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "ts": {"type": "string", "format": "date-time"},
+    "service": {"type": "string"},
+    "env": {"type": "string"},
+    "actor": {"type": "string", "maxLength": 64, "description": "Header x-actor đã scrub PII, hoặc 'anonymous'"},
+    "client_ip_hash": {"type": ["string", "null"], "description": "sha256(ip)[:12]; không lưu IP thô"},
+    "action": {"enum": ["incident.enable", "incident.disable"]},
+    "target": {"type": "string"},
+    "result": {"enum": ["success", "rejected"]},
+    "correlation_id": {"type": "string"},
+    "previous_state": {"type": ["boolean", "null"]},
+    "new_state": {"type": ["boolean", "null"]}
+  }
+}

@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APP_ENV: ci
+      LOG_PATH: data/logs.jsonl
+      AUDIT_LOG_PATH: data/audit.jsonl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Secret / PII scan (repository)
+        run: python scripts/scan_secrets_pii.py
+      - name: Unit tests
+        run: python -m pytest -q
+      - name: Dashboard contract
+        run: python scripts/validate_dashboard.py
+      - name: End-to-end smoke (API + load test + log validator)
+        run: |
+          uvicorn app.main:app --port 8000 > uvicorn.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health && break; sleep 1; done
+          python scripts/load_test.py --concurrency 5
+          python scripts/validate_logs.py | tee validate_logs.txt
+          grep -q "Estimated Score: 100/100" validate_logs.txt
+          python scripts/scan_secrets_pii.py --logs data/logs.jsonl
+          python scripts/build_dashboard.py --end latest --summary data/dashboard-summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-evidence
+          path: |
+            validate_logs.txt
+            uvicorn.log
+            data/dashboard.html
+            data/dashboard-summary.json
