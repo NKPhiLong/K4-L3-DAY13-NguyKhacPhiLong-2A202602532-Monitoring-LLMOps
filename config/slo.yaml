@@ -1,15 +1,42 @@
 service: day13-l3a-monitoring-llmops-lab
+owner: nguykhacphilong
 primary_slo:
   name: fast_successful_requests
   window: 28d
   sli:
+    # Một request "tốt" khi trả lời thành công VÀ đủ nhanh; request_failed luôn là "xấu".
     good_event: 'event == "response_sent" and latency_ms <= 3000'
     total_event: 'event == "request_received"'
   target_percent: 99.5
   error_budget_percent: 0.5
-  note: Học viên phải giải thích hoặc điều chỉnh ngưỡng bằng baseline của mình.
+  rationale: >-
+    Baseline đo trên máy lab (load_test, concurrency 1 và 5): P50 ≈ 158 ms, P95 ≈ 162 ms,
+    P99 ≈ 162 ms, TTFT P95 ≈ 55 ms, error rate 0%. Ngưỡng 3000 ms giữ nguyên theo
+    dashboard contract (panel latency: p95 ≤ 3000) để SLO, dashboard và alert dùng chung
+    một con số; khoảng cách lớn với baseline chừa chỗ cho LLM thật (vài giây/response).
+    Mục tiêu 99.5% thay vì 99.9% vì service phụ thuộc vector store và LLM bên ngoài
+    không có SLA riêng; 0.5% ngân sách đủ để hấp thụ vài sự cố ngắn mỗi tháng mà vẫn
+    buộc phải dừng release khi ngân sách cạn.
+  error_budget:
+    formula: 'budget_bad_requests = total_requests_28d * (1 - 0.995)'
+    example:
+      assumed_traffic_rpm: 10
+      total_requests_28d: 403200      # 10 req/phút * 60 * 24 * 28
+      allowed_bad_requests: 2016      # 403200 * 0.005
+      allowed_full_outage_minutes: 201.6  # 0.5% của 40320 phút
+    burn_rate: 'burn_rate = observed_bad_ratio / 0.005 (1.0 = tiêu vừa đúng hết ngân sách sau 28 ngày)'
+    policy:
+      - 'budget còn > 50%: release bình thường.'
+      - 'budget còn 0–50%: chỉ release fix/rollback, bắt buộc có canary.'
+      - 'budget cạn: đóng băng thay đổi prompt/model, ưu tiên reliability cho tới khi hồi phục.'
+    alerting:
+      fast_burn: 'burn_rate > 14.4 trong 1h (tiêu 2% ngân sách/giờ) -> page P1'
+      slow_burn: 'burn_rate > 6 trong 6h (tiêu 5% ngân sách/6h) -> Slack P2'
 guardrails:
+  latency_p95_warning_ms: 2000        # cảnh báo sớm trước khi chạm SLO 3000 ms
   error_rate_pct_max: 2
   daily_cost_usd_max: 2.5
+  hourly_cost_usd_alert: 0.21         # gấp 2 nhịp chi tiêu đều của 2.5 USD/ngày (0.104 USD/giờ)
+  cost_per_request_usd_alert: 0.004   # gấp ~2 baseline 0.0019 USD/request
   quality_score_avg_min: 0.75
   retrieval_success_rate_pct_min: 90

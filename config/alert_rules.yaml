@@ -1,25 +1,31 @@
 alerts:
-  - name: TODO_alert_1
-    severity: TODO
-    condition: TODO
-    duration: TODO
+  - name: HighLatencyP95
+    severity: P2-warning
+    condition: 'percentile(latency_ms, 95) over event == "response_sent" in last 5m > 2000 and count(response_sent, 5m) >= 10'
+    duration: 5m
     type: symptom-based
+    sli: latency (primary_slo fast_successful_requests, SLO line 3000 ms)
     channel: slack
-    owner: TODO
+    slack_channel: "#k4-l3a-day13-alerts"
+    owner: nguykhacphilong (on-call AI platform)
     runbook: docs/alerts.md#alert-1
-  - name: TODO_alert_2
-    severity: TODO
-    condition: TODO
-    duration: TODO
+  - name: HighErrorRate
+    severity: P1-critical
+    condition: 'count(event == "request_failed", 5m) / count(event == "request_received", 5m) * 100 > 2 and count(request_received, 5m) >= 20'
+    duration: 5m
     type: symptom-based
+    sli: availability (primary_slo fast_successful_requests; guardrail error_rate_pct_max 2)
     channel: slack
-    owner: TODO
+    slack_channel: "#k4-l3a-day13-alerts"
+    owner: nguykhacphilong (on-call AI platform)
     runbook: docs/alerts.md#alert-2
-  - name: TODO_alert_3
-    severity: TODO
-    condition: TODO
-    duration: TODO
+  - name: CostBudgetBurn
+    severity: P2-warning
+    condition: 'sum(cost_usd, 1h) over event == "response_sent" > 0.21 or avg(cost_usd, 15m) > 0.004'
+    duration: 15m
     type: symptom-based
+    sli: cost (guardrail daily_cost_usd_max 2.5)
     channel: slack
-    owner: TODO
+    slack_channel: "#k4-l3a-day13-alerts"
+    owner: nguykhacphilong (LLMOps / FinOps)
     runbook: docs/alerts.md#alert-3
