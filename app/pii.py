@@ -3,19 +3,24 @@ from __future__ import annotations
 import hashlib
 import re
 
+# Thứ tự có ý nghĩa: pattern dài/cụ thể chạy trước để số thẻ 16 chữ số
+# không bị pattern ngắn hơn (CCCD, điện thoại) che mất một phần.
 PII_PATTERNS: dict[str, str] = {
     "email": r"[\w\.-]+@[\w\.-]+\.\w+",
-    "phone_vn": r"(?<!\d)(?:\+84|0)(?:[ .-]?\d){9}(?!\d)",
-    "cccd": r"\b\d{12}\b",
     "credit_card": r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b",
-    # TODO: Add more patterns (e.g., Passport, Vietnamese address keywords)
+    "cccd": r"\b\d{12}\b",
+    "phone_vn": r"(?<!\d)(?:\+84|0)(?:[ .-]?\d){9}(?!\d)",
+    # Hộ chiếu Việt Nam: 1 chữ cái in hoa + 7 chữ số, ví dụ B1234567.
+    "passport_vn": r"\b[A-Z]\d{7}\b",
 }
+
+_COMPILED_PATTERNS = {name: re.compile(pattern) for name, pattern in PII_PATTERNS.items()}
 
 
 def scrub_text(text: str) -> str:
     safe = text
-    for name, pattern in PII_PATTERNS.items():
-        safe = re.sub(pattern, f"[REDACTED_{name.upper()}]", safe)
+    for name, pattern in _COMPILED_PATTERNS.items():
+        safe = pattern.sub(f"[REDACTED_{name.upper()}]", safe)
     return safe
 
 
