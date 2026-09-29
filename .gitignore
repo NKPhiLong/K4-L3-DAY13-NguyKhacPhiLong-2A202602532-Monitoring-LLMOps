@@ -9,5 +9,5 @@ data/audit.jsonl
 config/challenge.json
 .pytest_cache/
 .antigravity/
-data/dashboard.html
+data/dashboard*.html
 data/dashboard-summary.json
