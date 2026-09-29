@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import threading
 from collections import Counter
 from statistics import mean
+
+_LOCK = threading.Lock()
 
 REQUEST_LATENCIES: list[int] = []
 REQUEST_TTFT: list[int] = []
@@ -22,18 +25,20 @@ def record_request(
     quality_score: float,
 ) -> None:
     global TRAFFIC
-    TRAFFIC += 1
-    REQUEST_LATENCIES.append(latency_ms)
-    REQUEST_TTFT.append(ttft_ms)
-    REQUEST_COSTS.append(cost_usd)
-    REQUEST_TOKENS_IN.append(tokens_in)
-    REQUEST_TOKENS_OUT.append(tokens_out)
-    QUALITY_SCORES.append(quality_score)
+    with _LOCK:
+        TRAFFIC += 1
+        REQUEST_LATENCIES.append(latency_ms)
+        REQUEST_TTFT.append(ttft_ms)
+        REQUEST_COSTS.append(cost_usd)
+        REQUEST_TOKENS_IN.append(tokens_in)
+        REQUEST_TOKENS_OUT.append(tokens_out)
+        QUALITY_SCORES.append(quality_score)
 
 
 
 def record_error(error_type: str) -> None:
-    ERRORS[error_type] += 1
+    with _LOCK:
+        ERRORS[error_type] += 1
 
 
 

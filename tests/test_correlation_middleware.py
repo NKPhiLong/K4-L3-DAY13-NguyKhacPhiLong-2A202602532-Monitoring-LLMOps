@@ -102,3 +102,30 @@ def test_raw_pii_in_message_never_reaches_log_file(monkeypatch, tmp_path: Path) 
     written = log_path.read_text(encoding="utf-8")
     assert "4111 1111 1111 1111" not in written
     assert "0987654321" not in written
+
+
+def test_slow_dependency_does_not_serialize_concurrent_requests(monkeypatch, tmp_path: Path) -> None:
+    import time as time_module
+
+    from app import agent as agent_module
+
+    monkeypatch.setattr(logging_config, "LOG_PATH", tmp_path / "logs.jsonl")
+    original = agent_module.retrieve
+
+    def slow_retrieve(message: str) -> list[str]:
+        time_module.sleep(0.4)
+        return original(message)
+
+    monkeypatch.setattr(agent_module, "retrieve", slow_retrieve)
+
+    async def five_parallel(client: httpx.AsyncClient):
+        started = time_module.perf_counter()
+        responses = await asyncio.gather(*[_post_chat(client, session_id=f"s{i}") for i in range(5)])
+        return responses, time_module.perf_counter() - started
+
+    responses, elapsed = _run(five_parallel)
+
+    assert all(r.status_code == 200 for r in responses)
+    assert len({r.headers["x-request-id"] for r in responses}) == 5
+    # Nếu event loop bị chặn, 5 request nối tiếp nhau mất >= 5 * 0.55s.
+    assert elapsed < 1.8

@@ -25,6 +25,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+import yaml
+
 from app.cli import configure_utf8_stdio
 from app.metrics import percentile
 from scripts.validate_dashboard import load_dashboard_config
@@ -114,6 +116,10 @@ class Panel:
     # False khi threshold áp lên tổng cả cửa sổ (cost/tokens): hiển thị bằng meter
     # thay vì vẽ lên trục theo phút, vì hai đại lượng khác thang đo.
     threshold_on_chart: bool = True
+    # Series vẽ sau cùng (nằm trên) khi nhiều series trùng giá trị.
+    emphasis: str | None = None
+    # Đường alert phụ (ví dụ HighLatencyP95), khác với threshold/SLO của contract.
+    alert_line: tuple[str, float] | None = None
 
 
 def budget_meter(label: str, used: float, limit: float, fmt: str) -> str:
@@ -125,6 +131,17 @@ def budget_meter(label: str, used: float, limit: float, fmt: str) -> str:
         f"<div class='meter-track'><div class='meter-fill meter-{state}' "
         f"style='width:{min(ratio, 1) * 100:.2f}%'></div></div></div>"
     )
+
+
+def load_alert_lines(path: Path = REPO_ROOT / "config" / "slo.yaml") -> dict[str, tuple[str, float]]:
+    try:
+        guardrails = yaml.safe_load(path.read_text(encoding="utf-8")).get("guardrails", {})
+    except (OSError, AttributeError, yaml.YAMLError):
+        return {}
+    lines = {}
+    if isinstance(guardrails.get("latency_p95_warning_ms"), (int, float)):
+        lines["latency"] = ("alert HighLatencyP95: p95 > ", float(guardrails["latency_p95_warning_ms"]))
+    return lines
 
 
 def compute(config: dict, events: list[dict], window: Window) -> tuple[list[Panel], dict]:
@@ -193,6 +210,8 @@ def compute(config: dict, events: list[dict], window: Window) -> tuple[list[Pane
         ("TTFT P95", per_minute(lambda b: percentile(values(b, "ttft_ms"), 95))),
     ]
     p.status_value = summary["latency_p95_ms"] if latencies else None
+    p.emphasis = "P95"
+    p.alert_line = load_alert_lines().get("latency")
 
     p = panels["traffic"]
     p.stats = [("Requests", f"{len(received):,}"), ("Avg rate", f"{rpm:g}/min")]
@@ -290,6 +309,8 @@ def render_chart(panel: Panel, window: Window) -> str:
     unit = panel.config["unit"]
     threshold = panel.threshold_value if panel.threshold_on_chart else None
     observed = [v for _, s in panel.series for v in s if v is not None]
+    if panel.alert_line:
+        observed.append(panel.alert_line[1])
     # Trục luôn chứa threshold để người đọc thấy khoảng cách tới SLO.
     y_max = nice_max(max(observed + [threshold or 0]) * 1.1)
     plot_w, plot_h = W - PAD_L - PAD_R, H - PAD_T - PAD_B
@@ -331,7 +352,8 @@ def render_chart(panel: Panel, window: Window) -> str:
                 f"<title>{window.label(i)} · {name}: {fmt_tick(v, unit) if unit in ('usd', 'percent') else f'{v:,.4g}'}</title></path>"
             )
     else:
-        for s_index, (name, series) in enumerate(panel.series):
+        draw_order = sorted(enumerate(panel.series), key=lambda item: item[1][0] == panel.emphasis)
+        for s_index, (name, series) in draw_order:
             color = SERIES[s_index % len(SERIES)]
             segment: list[str] = []
             segments: list[list[str]] = []
@@ -356,6 +378,14 @@ def render_chart(panel: Panel, window: Window) -> str:
                     f"<title>{window.label(i)} · {html.escape(name)}: {shown} {html.escape(unit)}</title></circle>"
                 )
 
+    if panel.alert_line:
+        label, value = panel.alert_line
+        ay = y(value)
+        parts.append(
+            f"<line class='alert-line' x1='{PAD_L}' x2='{W - PAD_R}' y1='{ay:.1f}' y2='{ay:.1f}'/>"
+            f"<text class='alert-label' x='{PAD_L + 6}' y='{ay - 5:.1f}' text-anchor='start'>"
+            f"{html.escape(label)}{fmt_tick(value, unit)}</text>"
+        )
     if threshold is not None:
         ty = y(threshold)
         op = "≤" if panel.config["threshold"]["operator"] == "lte" else "≥"
@@ -413,7 +443,7 @@ def render_panel(panel: Panel, window: Window) -> str:
 CSS = """
 :root{color-scheme:light;--page:#f9f9f7;--surface-1:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--muted:#898781;
 --grid:#e1e0d9;--axis:#c3c2b7;--border:rgba(11,11,11,.10);--series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf7a;
---series-4:#eda100;--good:#0ca30c;--good-ink:#006300;--critical:#d03b3b}
+--series-4:#eda100;--serious:#ec835a;--good:#0ca30c;--good-ink:#006300;--critical:#d03b3b}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--page:#0d0d0d;--surface-1:#1a1a19;
 --ink:#fff;--ink-2:#c3c2b7;--grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,.10);--series-1:#3987e5;
 --series-2:#d95926;--series-3:#199e70;--series-4:#c98500;--good-ink:#0ca30c}}
@@ -439,6 +469,7 @@ svg .tick{fill:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
 svg .line{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
 svg .dot{stroke:var(--surface-1);stroke-width:2}
 svg .threshold{stroke:var(--critical);stroke-width:1.5}
+svg .alert-line{stroke:var(--serious);stroke-width:1.5}svg .alert-label{fill:var(--ink-2);font-size:11px;font-weight:600}
 svg .threshold-label{fill:var(--critical);font-size:11px;font-weight:600}
 .breakdown{border-collapse:collapse;font-size:12px;margin-top:6px;min-width:220px}
 .breakdown th,.breakdown td{text-align:left;padding:3px 10px 3px 0;border-bottom:1px solid var(--grid)}
@@ -450,13 +481,19 @@ svg .threshold-label{fill:var(--critical);font-size:11px;font-weight:600}
 
 
 def render_html(
-    config: dict, panels: list[Panel], summary: dict, window: Window, source: Path, theme: str
+    config: dict,
+    panels: list[Panel],
+    summary: dict,
+    window: Window,
+    source: Path,
+    theme: str,
+    only: list[str] | None = None,
 ) -> str:
     tz_local = datetime.now().astimezone().tzinfo
     start_local = window.start.astimezone(tz_local).strftime("%Y-%m-%d %H:%M")
     end_local = window.end.astimezone(tz_local).strftime("%H:%M %Z")
     generated = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
-    body = "".join(render_panel(p, window) for p in panels)
+    body = "".join(render_panel(p, window) for p in panels if not only or p.config["id"] in only)
     return f"""<!doctype html>
 <html lang="en"{f' data-theme="{theme}"' if theme in ("light", "dark") else ""}><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -513,7 +550,7 @@ def build(args: argparse.Namespace) -> dict:
     window = resolve_window(events, config["time_range_minutes"], args.end)
     panels, summary = compute(config, events, window)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(render_html(config, panels, summary, window, args.logs, args.theme), encoding="utf-8")
+    args.out.write_text(render_html(config, panels, summary, window, args.logs, args.theme, getattr(args, "only", None)), encoding="utf-8")
     if args.summary:
         args.summary.parent.mkdir(parents=True, exist_ok=True)
         args.summary.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -529,6 +566,8 @@ def main() -> int:
     parser.add_argument("--summary", type=Path, help="Ghi số liệu tổng hợp ra JSON")
     parser.add_argument("--end", default="now", help="'now' (mặc định), 'latest' hoặc ISO timestamp")
     parser.add_argument("--screenshot", type=Path, help="Chụp PNG bằng headless Chrome")
+    parser.add_argument("--only", nargs="+", help="Chỉ render các panel id này (ảnh zoom cho incident)")
+    parser.add_argument("--screenshot-height", type=int, default=1440)
     parser.add_argument("--theme", choices=["auto", "light", "dark"], default="auto")
     parser.add_argument("--watch", action="store_true", help="Dựng lại mỗi refresh_seconds")
     args = parser.parse_args()
@@ -537,7 +576,7 @@ def main() -> int:
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     print(f"Dashboard: {args.out}")
     if args.screenshot:
-        screenshot(args.out, args.screenshot)
+        screenshot(args.out, args.screenshot, height=args.screenshot_height)
         print(f"Screenshot: {args.screenshot}")
     if args.watch:
         refresh = load_dashboard_config(args.config)["dashboard"]["refresh_seconds"]
