@@ -36,7 +36,14 @@ SECRET_DETECTORS = {
     ),
 }
 FORBIDDEN_PATHS = (".env", "config/challenge.json", "data/logs.jsonl", "data/audit.jsonl")
-PII_ALLOWLIST_PREFIXES = ("data/sample_queries.jsonl", "tests/", "docs/", "scripts/scan_secrets_pii.py")
+PII_ALLOWLIST_PREFIXES = (
+    "data/sample_queries.jsonl",
+    "tests/",
+    "docs/",
+    "scripts/scan_secrets_pii.py",
+    # Evidence 05 phải chứa input PII GIẢ để đối chiếu với log đã redact.
+    "submission/evidence/05-pii-redaction",
+)
 
 
 def tracked_files() -> list[str]:
