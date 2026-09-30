@@ -22,8 +22,8 @@
 | Structured log | [`evidence/04-structured-log.png`](evidence/04-structured-log.png) · [`.txt`](evidence/04-structured-log.txt) |
 | PII redaction | [`evidence/05-pii-redaction.png`](evidence/05-pii-redaction.png) · [`.txt`](evidence/05-pii-redaction.txt) |
 | Trace list | [`evidence/06-trace-list.png`](evidence/06-trace-list.png) · đối chiếu API: [`06-trace-list-api.txt`](evidence/06-trace-list-api.txt) |
-| Trace waterfall | [`evidence/07-trace-waterfall.png`](evidence/07-trace-waterfall.png) |
-| Trace metadata | [`evidence/08-trace-metadata.png`](evidence/08-trace-metadata.png) |
+| Trace waterfall | [`evidence/07-trace-waterfall.png`](evidence/07-trace-waterfall.png) (trace `e31952f5…`, cây `lab-agent-run` → `retrieval` + `llm-generation`) |
+| Trace metadata | [`evidence/08a-trace-metadata-root.png`](evidence/08a-trace-metadata-root.png) (correlation_id, prompt name/label/version) · [`evidence/08b-trace-metadata-generation.png`](evidence/08b-trace-metadata-generation.png) (model, TTFT, token, cost, prompt v1) |
 | Prompt versions | [`evidence/09-prompt-versions.png`](evidence/09-prompt-versions.png) |
 | Prompt rollback | [`evidence/10a-production-v2.png`](evidence/10a-production-v2.png) → [`evidence/10b-rollback-v1.png`](evidence/10b-rollback-v1.png) |
 | Dashboard runtime | [`evidence/11-dashboard-overview.png`](evidence/11-dashboard-overview.png) |
@@ -113,10 +113,10 @@
 
 ## 9. Checklist trước khi nộp
 
-- [ ] Kết quả và evidence thuộc commit SHA cuối.
-- [ ] Tất cả ảnh/output mở được bằng đường dẫn tương đối (còn chờ 06, 07, 08, 10b, 14 chụp từ Langfuse).
+- [x] Kết quả và evidence thuộc commit SHA cuối.
+- [x] Tất cả ảnh/output mở được bằng đường dẫn tương đối.
 - [x] Incident evidence nối đúng metric → log → trace.
-- [ ] Trace/prompt evidence thuộc project Langfuse cá nhân và ảnh không lộ key/secret.
+- [x] Trace/prompt evidence thuộc project Langfuse cá nhân và ảnh không lộ key/secret.
 - [x] Repository chạy lại được theo README.
 - [x] Không có secret, API key, PII thô hoặc evidence của người khác/lớp khác.
 - [ ] URL repo và commit SHA cuối đã được nộp trên LMS/Codelabs.
